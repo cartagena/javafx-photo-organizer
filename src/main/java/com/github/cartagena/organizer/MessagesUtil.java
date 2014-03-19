@@ -8,6 +8,10 @@ class MessagesUtil {
 		return move ? "Picture '%s' moved to new path '%s'" : "Picture '%s' copied to new path '%s'";
 	}
 	
+	static String skip(final boolean move) {
+		return move ? "Will not move '%s', already on destination path." : "Will not copy '%s', already on destination path.";
+	}
+	
 	static String error(final boolean move) {
 		return move ? "Failed to move picture '%s'." : "Failed to copy picture '%s'." ;
 	}

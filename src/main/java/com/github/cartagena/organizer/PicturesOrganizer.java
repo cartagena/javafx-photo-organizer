@@ -22,7 +22,7 @@ import com.drew.metadata.exif.ExifSubIFDDirectory;
 @Slf4j
 public class PicturesOrganizer {
 
-	private static int processPictures(final String sourcePath, final String destinationPath, boolean move, final PicturesOrganizerListener listener) {
+	private static int processPictures(final String sourcePath, final String destinationPath, final PicturesOrganizerListener listener, boolean move, boolean dry) {
 		File source = new File(sourcePath);
 		File destination = new File(destinationPath);
 		
@@ -44,7 +44,14 @@ public class PicturesOrganizer {
 				String toPath = extractPhotoPath(picture);
 				File destDir = new File(destination, toPath);
 				
-				if(move) {
+				if(picture.getParent().equals(destDir.getAbsolutePath())) {
+					listener.onProcessSkip(i, total, picture.getAbsolutePath());
+					continue;
+				}
+				
+				if(dry) {
+					// do nothing
+				} else if(move) {
 					moveFileToDirectory(picture, destDir, true);
 				} else {
 					copyFileToDirectory(picture, destDir, true);
@@ -70,12 +77,16 @@ public class PicturesOrganizer {
 		return processed;
 	}
 	
+	static int dryRun(final String sourcePath, final String destinationPath, final PicturesOrganizerListener listener) {
+		return processPictures(sourcePath, destinationPath, listener, false, true);
+	}
+	
 	static int copyPictures(final String sourcePath, final String destinationPath, final PicturesOrganizerListener listener) {
-		return processPictures(sourcePath, destinationPath, false, listener);
+		return processPictures(sourcePath, destinationPath, listener, false, false);
 	}
 	
 	static int movePictures(final String sourcePath, final String destinationPath, final PicturesOrganizerListener listener) {
-		return processPictures(sourcePath, destinationPath, true, listener);
+		return processPictures(sourcePath, destinationPath, listener, true, false);
 	}
 	
 	public static String extractPhotoPath(final File photo) {
@@ -103,6 +114,8 @@ public class PicturesOrganizer {
 		
 		void onProcess(final int current, final int total, final String newPath, final String originalPath);
 		
+		void onProcessSkip(final int current, final int total, final String originalPath);
+
 		void onProcessError(final int current, final int total, final String originalPath);
 		
 		void onStart(final int total);

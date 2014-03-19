@@ -2,9 +2,11 @@ package com.github.cartagena.organizer;
 
 import static com.github.cartagena.organizer.MessagesUtil.end;
 import static com.github.cartagena.organizer.MessagesUtil.error;
+import static com.github.cartagena.organizer.MessagesUtil.skip;
 import static com.github.cartagena.organizer.MessagesUtil.starting;
 import static com.github.cartagena.organizer.MessagesUtil.success;
 import static com.github.cartagena.organizer.PicturesOrganizer.copyPictures;
+import static com.github.cartagena.organizer.PicturesOrganizer.dryRun;
 import static com.github.cartagena.organizer.PicturesOrganizer.movePictures;
 import static java.lang.String.format;
 import static javafx.geometry.Pos.TOP_LEFT;
@@ -36,9 +38,11 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.GridPaneBuilder;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
 import com.github.cartagena.organizer.PicturesOrganizer.PicturesOrganizerListener;
 
+@Slf4j
 public class PicturesOrganizerApplication extends Application {
     
 
@@ -83,6 +87,7 @@ public class PicturesOrganizerApplication extends Application {
 
         
         final CheckBox moveCheckbox = new CheckBox("Move pictures (will erease files from source directory)");
+        final CheckBox dryRunCheckbox = new CheckBox("Dry run");
         
         // user feedback
         final ProgressBar progressBar = ProgressBarBuilder.create()
@@ -132,7 +137,7 @@ public class PicturesOrganizerApplication extends Application {
 	                progressIndicator.setProgress(0);
 	                progressTextArea.setText("");
 	                
-	                Task<Void> worker = createWorker(sourcePath, destinationPath, moveCheckbox.isSelected());
+	                Task<Void> worker = createWorker(sourcePath, destinationPath, moveCheckbox.isSelected(), dryRunCheckbox.isSelected());
 
 	                progressBar.progressProperty().bind(worker.progressProperty());
 	                progressIndicator.progressProperty().bind(worker.progressProperty());
@@ -213,48 +218,67 @@ public class PicturesOrganizerApplication extends Application {
         grid.add(destinationChooser, 1, 3);
         
         grid.add(moveCheckbox, 0, 4);
+        grid.add(dryRunCheckbox, 0, 5);
 		
-		grid.add(butonGrid, 0, 6, 1, 2);
+		grid.add(butonGrid, 0, 7, 1, 2);
 
-		grid.add(progressBar, 0, 7);
-		grid.add(progressIndicator, 1, 7);
+		grid.add(progressBar, 0, 8);
+		grid.add(progressIndicator, 1, 8);
 		
-		grid.add(progressTextArea, 0, 8, 2, 1);
+		grid.add(progressTextArea, 0, 9, 2, 1);
 		
         
         primaryStage.show();
     }
     
-    public Task<Void> createWorker(final String sourcePath, final String destinationPath, final boolean move) {
-        return new Task<Void>() {
+    public Task<Void> createWorker(final String sourcePath, final String destinationPath, final boolean move, final boolean dry) {
+    	return new Task<Void>() {
             @Override
             protected Void call() throws Exception {
             	final PicturesOrganizerListener listener = new PicturesOrganizerListener() {
 					
 					@Override
 					public void onProcess(int current, int total, String newPath, String originalPath) {
+						log.debug("onProcess called;");
+						
 						updateProgress(current, total);
 						updateMessage(format(success(move), originalPath, newPath));
+					}
+
+					@Override
+					public void onProcessSkip(int current, int total, String originalPath) {
+						log.debug("onProcessSkip called;");
+						
+						updateProgress(current, total);
+						updateMessage(format(skip(move), originalPath));
 					}
 					
 					@Override
 					public void onProcessError(int current, int total, String originalPath) {
+						log.debug("onProcessError called;");
+						
 						updateProgress(current, total);
 						updateMessage(format(error(move), originalPath));
 					}					
 
 					@Override
 					public void onStart(int total) {
+						log.debug("onStart called;");
+						
 						updateMessage(format(starting(move), total));						
 					}
 
 					@Override
 					public void onEnd(int total, int processed) {
+						log.debug("onEnd called;");
+						
 						updateMessage(format(end(move), processed, total));
 					}
 				};
 				
-				if(move) {
+				if(dry) {
+					dryRun(sourcePath, destinationPath, listener);
+				} else if(move) {
 					movePictures(sourcePath, destinationPath,  listener);
 				} else {
 					copyPictures(sourcePath, destinationPath,  listener);
